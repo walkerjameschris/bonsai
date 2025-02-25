@@ -86,6 +86,7 @@ train_lightgbm <- function(x, y, weights = NULL, max_depth = -1, num_iterations 
     )
 
   args <- process_bagging(args)
+  args <- process_monotone(args, x)
   args <- process_parallelism(args)
   args <- process_objective_function(args, x, y)
 
@@ -174,6 +175,27 @@ process_bagging <- function(args) {
   if (args$bagging_fraction != 1 &&
       (!"bagging_freq" %in% names(args))) {
     args$bagging_freq <- 1
+  }
+
+  args
+}
+
+process_monotone <- function(args, x) {
+
+  arg <- args$monotone_constraints
+
+  if (!is.null(names(arg)) && is.numeric(arg)) {
+
+    positive <- names(arg[arg == 1])
+    negative <- names(arg[arg == -1])
+
+    args$monotone_constraints <-
+      dplyr::case_match(
+        colnames(x),
+        positive ~ 1,
+        negative ~ -1,
+        .default = 0
+      )
   }
 
   args

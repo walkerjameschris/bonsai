@@ -861,3 +861,58 @@ test_that("sparse data with lightgbm",{
   expect_equal(sprs_prob, dens_prob, tolerance = .001)
   expect_equal(sprs_cls, dens_cls)
 })
+
+test_that("boost_tree with lightgbm and monotone constraints", {
+  skip_if_not_installed("lightgbm")
+  skip_if_not_installed("modeldata")
+
+  suppressPackageStartupMessages({
+    library(lightgbm)
+    library(dplyr)
+  })
+
+  data <-
+    data.frame(
+      x = seq(-5, 5, 0.1),
+      y = 2 - (seq(-5, 5, 0.1) ** 2)
+    )
+
+  models <-
+    list(
+      none = 0,
+      positive_num = 1,
+      positive_named = c(x = 1),
+      negative_num = -1,
+      negative_named = c(x = -1)
+    ) |>
+    purrr::map(function(x) {
+
+      parsnip::boost_tree(
+        mode = "regression"
+      ) |>
+        parsnip::set_engine(
+          engine = "lightgbm",
+          monotone_constraints = x
+        ) |>
+        parsnip::fit(
+          formula = y ~ x,
+          data = data
+        ) |>
+        predict(
+          new_data = data
+        ) |>
+        dplyr::reframe(
+          difference = sign(.pred - dplyr::lag(.pred))
+        ) |>
+        tidyr::drop_na() |>
+        dplyr::distinct() |>
+        dplyr::pull() |>
+        sort()
+    })
+  
+  expect_true(all(c(-1, 0, 1) %in% models$none))
+  expect_true(all(c(0, 1) %in% models$positive_num))
+  expect_true(all(c(0, -1) %in% models$negative_num))
+  expect_true(all(c(0, 1) %in% models$positive_named))
+  expect_true(all(c(0, -1) %in% models$negative_named))
+})
