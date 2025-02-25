@@ -872,9 +872,9 @@ test_that("boost_tree with lightgbm and monotone constraints", {
   })
 
   data <-
-    data.frame(
+    tibble::tibble(
       x = seq(-5, 5, 0.1),
-      y = 2 - (seq(-5, 5, 0.1) ** 2)
+      y = 2 - x ** 2
     )
 
   models <-
